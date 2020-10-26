@@ -253,11 +253,6 @@ impl APB1 {
         // NOTE(unsafe) this proxy grants exclusive access to this register
         unsafe { &(*RCC::ptr()).apb1enr }
     }
-
-    pub(crate) fn rstr(&mut self) -> &rcc::APB1RSTR {
-        // NOTE(unsafe) this proxy grants exclusive access to this register
-        unsafe { &(*RCC::ptr()).apb1rstr }
-    }
 }
 
 impl APB1 {
