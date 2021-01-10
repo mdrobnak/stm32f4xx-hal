@@ -253,6 +253,11 @@ impl APB1 {
         // NOTE(unsafe) this proxy grants exclusive access to this register
         unsafe { &(*RCC::ptr()).apb1enr }
     }
+
+    pub(crate) fn rstr(&mut self) -> &rcc::APB1RSTR {
+        // NOTE(unsafe) this proxy grants exclusive access to this register
+        unsafe { &(*RCC::ptr()).apb1rstr }
+    }
 }
 
 impl APB1 {
@@ -1501,3 +1506,57 @@ impl Clocks {
         self.sai2_clk
     }
 }
+
+pub(crate) mod sealed {
+    /// Bus associated to peripheral
+    pub trait RccBus {
+        /// Bus type;
+        type Bus;
+    }
+}
+use sealed::RccBus;
+
+/// Enable/disable peripheral
+pub trait Enable: RccBus {
+    fn enable(apb: &mut Self::Bus);
+    fn disable(apb: &mut Self::Bus);
+}
+
+/// Reset peripheral
+pub trait Reset: RccBus {
+    fn reset(apb: &mut Self::Bus);
+}
+
+macro_rules! bus {
+    ($($PER:ident => ($apbX:ty, $peren:ident, $perrst:ident),)+) => {
+        $(
+            impl RccBus for crate::pac::$PER {
+                type Bus = $apbX;
+            }
+            impl Enable for crate::pac::$PER {
+                #[inline(always)]
+                fn enable(apb: &mut Self::Bus) {
+                    apb.enr().modify(|_, w| w.$peren().set_bit());
+                }
+                #[inline(always)]
+                fn disable(apb: &mut Self::Bus) {
+                    apb.enr().modify(|_, w| w.$peren().clear_bit());
+                }
+            }
+            impl Reset for crate::pac::$PER {
+                #[inline(always)]
+                fn reset(apb: &mut Self::Bus) {
+                    apb.rstr().modify(|_, w| w.$perrst().set_bit());
+                    apb.rstr().modify(|_, w| w.$perrst().clear_bit());
+                }
+            }
+        )+
+    }
+}
+
+#[cfg(feature = "has-can")]
+bus! {
+    CAN1 => (APB1, can1en, can1rst),
+    CAN2 => (APB1, can2en, can2rst),
+}
+
